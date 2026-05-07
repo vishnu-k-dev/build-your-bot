@@ -17,12 +17,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     const id = localStorage.getItem('botId')
-    const bn = localStorage.getItem('botName') || 'Your Bot'
-    const biz = localStorage.getItem('businessName') || ''
     setBotId(id)
-    setBotName(bn)
-    setBusinessName(biz)
-
+    setBotName(localStorage.getItem('botName') || 'Your Bot')
+    setBusinessName(localStorage.getItem('businessName') || '')
     if (id) {
       fetch('/api/sources?botId=' + id).then(r => r.json()).then(data => {
         if (Array.isArray(data)) setSources(data)
@@ -54,62 +51,77 @@ export default function Dashboard() {
       })))
       setPendingIds([])
       setTrainStatus('ready')
-    } catch {
-      setTrainStatus('error')
-    }
+    } catch { setTrainStatus('error') }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[#f8fafc]">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">B</div>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
           <div>
-            <p className="font-semibold text-gray-900 text-sm leading-tight">{botName}</p>
-            <p className="text-xs text-gray-400">{businessName}</p>
+            <p className="font-semibold text-slate-900 text-sm leading-tight">{botName}</p>
+            {businessName && <p className="text-xs text-slate-400">{businessName}</p>}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {trainStatus === 'ready' && (
-            <Link href={`/chat?botId=${botId}`} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-              Open Chat →
-            </Link>
-          )}
-          <Link href="/setup" className="text-xs text-gray-400 hover:text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-100">
+          <Link href="/setup" className="text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition font-medium">
             Edit Setup
+          </Link>
+          <Link
+            href={`/chat?botId=${botId}`}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition flex items-center gap-1.5"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            Open Chat
           </Link>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-10 space-y-6">
+      <main className="max-w-2xl mx-auto px-4 py-10 space-y-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Knowledge Base</h1>
-          <p className="text-gray-500 mt-1">Teach <span className="font-medium text-blue-600">{botName}</span> about your business.</p>
+          <h1 className="text-xl font-bold text-slate-900">Knowledge Base</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Teach <span className="font-medium text-blue-600">{botName}</span> about your business — PDFs, URLs, or text.
+          </p>
         </div>
 
         <UploadPanel onUploaded={handleUploaded} botId={botId || undefined} />
         <SourceList sources={sources} onDelete={handleDelete} onTrain={handleTrain} trainStatus={trainStatus} />
 
-        {trainStatus === 'ready' && (
-          <div className="rounded-2xl bg-blue-50 border border-blue-200 p-5 text-center">
-            <p className="text-blue-700 font-semibold mb-1">🎉 {botName} is ready!</p>
-            <p className="text-blue-500 text-sm mb-4">Your bot now knows your business inside out.</p>
-            <div className="flex gap-3 justify-center flex-wrap">
-              <Link href={`/chat?botId=${botId}`} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700">
-                Chat with {botName}
-              </Link>
-              <Link href="/embed-page" className="bg-white border border-blue-300 text-blue-700 px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-50">
-                Get Embed Code
-              </Link>
+        {sources.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+            <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+              </svg>
             </div>
+            <p className="font-semibold text-slate-700 text-sm">No content yet</p>
+            <p className="text-slate-400 text-xs mt-1">Upload a PDF, add a URL, or paste FAQ text above</p>
           </div>
         )}
 
-        {sources.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center">
-            <p className="text-3xl mb-2">📚</p>
-            <p className="text-gray-500 font-medium">No content yet</p>
-            <p className="text-gray-400 text-sm mt-1">Upload a PDF, add a URL, or paste FAQ text above</p>
+        {trainStatus === 'ready' && (
+          <div className="rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-6 flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-slate-900 text-sm">🎉 {botName} is trained and ready!</p>
+              <p className="text-slate-500 text-xs mt-0.5">Your bot now knows your business content.</p>
+            </div>
+            <div className="flex gap-2">
+              <Link href={`/chat?botId=${botId}`} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">
+                Chat now →
+              </Link>
+              <Link href="/embed-page" className="bg-white border border-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg hover:bg-slate-50 transition">
+                Embed
+              </Link>
+            </div>
           </div>
         )}
       </main>

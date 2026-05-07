@@ -14,37 +14,35 @@ export function UploadPanel({ onUploaded, botId }: Props) {
   const [url, setUrl] = useState('')
   const [faqName, setFaqName] = useState('')
   const [faqText, setFaqText] = useState('')
+  const [fileName, setFileName] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function upload() {
-    setError('')
-    setLoading(true)
+    setError(''); setLoading(true)
     try {
       const fd = new FormData()
       fd.append('type', tab)
+      if (botId) fd.append('botId', botId)
 
       if (tab === 'pdf') {
         const file = fileRef.current?.files?.[0]
-        if (!file) throw new Error('Select a PDF')
+        if (!file) throw new Error('Please select a PDF file')
         fd.append('file', file)
       } else if (tab === 'url') {
-        if (!url) throw new Error('Enter a URL')
+        if (!url) throw new Error('Please enter a URL')
         fd.append('url', url)
       } else {
-        if (!faqText) throw new Error('Enter FAQ text')
+        if (!faqText) throw new Error('Please enter some FAQ text')
         fd.append('name', faqName || 'FAQ')
         fd.append('text', faqText)
       }
 
-      if (botId) fd.append('botId', botId)
       const res = await fetch('/api/upload', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
 
       onUploaded(data.sourceId, data.name)
-      setUrl('')
-      setFaqText('')
-      setFaqName('')
+      setUrl(''); setFaqText(''); setFaqName(''); setFileName('')
       if (fileRef.current) fileRef.current.value = ''
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Upload failed')
@@ -54,79 +52,117 @@ export function UploadPanel({ onUploaded, botId }: Props) {
   }
 
   const tabs = [
-    { id: 'pdf' as const, label: 'Upload PDF' },
-    { id: 'url' as const, label: 'Website URL' },
-    { id: 'faq' as const, label: 'FAQ Text' },
+    { id: 'pdf' as const, label: 'PDF', icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    )},
+    { id: 'url' as const, label: 'Website URL', icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    )},
+    { id: 'faq' as const, label: 'FAQ Text', icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    )},
   ]
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="flex gap-2 mb-5">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Tabs */}
+      <div className="flex border-b border-slate-100">
         {tabs.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition-colors ${
               tab === t.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/40'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
             }`}
           >
-            {t.label}
+            {t.icon}{t.label}
           </button>
         ))}
       </div>
 
-      {tab === 'pdf' && (
-        <div
-          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 transition-colors"
-          onClick={() => fileRef.current?.click()}
+      <div className="p-5">
+        {tab === 'pdf' && (
+          <div
+            onClick={() => fileRef.current?.click()}
+            className="border-2 border-dashed border-slate-200 hover:border-blue-300 rounded-xl p-8 text-center cursor-pointer transition-colors group"
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf"
+              className="hidden"
+              onChange={e => setFileName(e.target.files?.[0]?.name || '')}
+            />
+            <div className="w-10 h-10 bg-slate-100 group-hover:bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            {fileName ? (
+              <p className="text-sm font-medium text-blue-600">{fileName}</p>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-slate-600">Click to upload PDF</p>
+                <p className="text-xs text-slate-400 mt-1">Supports all PDF files</p>
+              </>
+            )}
+          </div>
+        )}
+
+        {tab === 'url' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-4 py-3 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-50 transition">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <input
+                type="url"
+                placeholder="https://yoursite.com/faq"
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                className="flex-1 text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
+              />
+            </div>
+            <p className="text-xs text-slate-400">We'll extract the text content from this page</p>
+          </div>
+        )}
+
+        {tab === 'faq' && (
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="Source name (e.g. FAQ Page)"
+              value={faqName}
+              onChange={e => setFaqName(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-50 focus:border-blue-400 transition"
+            />
+            <textarea
+              placeholder="Paste your FAQ content here…"
+              value={faqText}
+              onChange={e => setFaqText(e.target.value)}
+              rows={5}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-50 focus:border-blue-400 transition resize-none"
+            />
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-3 flex items-center gap-2 bg-red-50 border border-red-100 text-red-600 text-xs px-3.5 py-2.5 rounded-xl">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            {error}
+          </div>
+        )}
+
+        <button
+          onClick={upload}
+          disabled={loading}
+          className="mt-4 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-200 text-white font-semibold py-2.5 rounded-xl transition text-sm flex items-center justify-center gap-2"
         >
-          <input ref={fileRef} type="file" accept=".pdf" className="hidden" />
-          <p className="text-4xl mb-2">📄</p>
-          <p className="text-gray-500">Click to select a PDF</p>
-          <p className="text-xs text-gray-400 mt-1">{fileRef.current?.files?.[0]?.name || 'No file selected'}</p>
-        </div>
-      )}
-
-      {tab === 'url' && (
-        <input
-          type="url"
-          placeholder="https://yoursite.com/faq"
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      )}
-
-      {tab === 'faq' && (
-        <div className="space-y-3">
-          <input
-            type="text"
-            placeholder="Source name (e.g. FAQ Page)"
-            value={faqName}
-            onChange={e => setFaqName(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <textarea
-            placeholder="Paste your FAQ content here..."
-            value={faqText}
-            onChange={e => setFaqText(e.target.value)}
-            rows={5}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          />
-        </div>
-      )}
-
-      {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
-
-      <button
-        onClick={upload}
-        disabled={loading}
-        className="mt-4 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-3 rounded-xl transition-colors"
-      >
-        {loading ? 'Processing…' : 'Add Source'}
-      </button>
+          {loading ? (
+            <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/><span>Processing…</span></>
+          ) : 'Add Source'}
+        </button>
+      </div>
     </div>
   )
 }

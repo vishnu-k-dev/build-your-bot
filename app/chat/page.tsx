@@ -8,32 +8,54 @@ import { Suspense, useEffect, useState } from 'react'
 function ChatPageInner() {
   const params = useSearchParams()
   const botId = params.get('botId') || (typeof window !== 'undefined' ? localStorage.getItem('botId') : null)
-  const [botName, setBotName] = useState('AI Assistant')
+  const [botName, setBotName] = useState('Assistant')
+  const [businessName, setBusinessName] = useState('')
 
   useEffect(() => {
-    const name = localStorage.getItem('botName')
-    if (name) setBotName(name)
+    setBotName(localStorage.getItem('botName') || 'Assistant')
+    setBusinessName(localStorage.getItem('businessName') || '')
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white text-lg">🤖</div>
-          <span className="font-bold text-gray-900">{botName}</span>
-        </div>
+    <div className="h-screen bg-[#f8fafc] flex flex-col">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-100 px-6 py-3.5 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-            + Add Knowledge
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div>
+            <p className="font-semibold text-slate-900 text-sm leading-tight">{botName}</p>
+            {businessName && <p className="text-xs text-slate-400">{businessName}</p>}
+          </div>
+          <div className="flex items-center gap-1.5 ml-1">
+            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"/>
+            <span className="text-xs text-emerald-600 font-medium">Online</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <Link
+            href="/dashboard"
+            className="text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Add Knowledge
           </Link>
-          <Link href="/setup" className="text-xs text-gray-400 hover:text-gray-600">
+          <Link
+            href="/setup"
+            className="text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition font-medium"
+          >
             Edit Setup
           </Link>
         </div>
       </header>
 
-      <div className="flex-1 max-w-2xl w-full mx-auto px-4 py-6 flex flex-col">
-        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 120px)' }}>
+      {/* Chat area */}
+      <div className="flex-1 overflow-hidden max-w-3xl w-full mx-auto px-4 py-4 flex flex-col">
+        <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <ChatWindow botId={botId || undefined} botName={botName} />
         </div>
       </div>
