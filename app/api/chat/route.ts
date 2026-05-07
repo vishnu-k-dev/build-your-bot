@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdmin } from '@/lib/supabase'
-import { xai, CHAT_MODEL } from '@/lib/xai'
+import { groq, CHAT_MODEL } from '@/lib/xai'
 import { embed } from '@/lib/embedder'
 
 const DEFAULT_PROMPT = `You are a helpful customer support assistant.
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = systemPromptTemplate.replace('{context}', context)
 
-    const completion = await xai.chat.completions.create({
+    const completion = await groq.chat.completions.create({
       model: CHAT_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },

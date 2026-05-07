@@ -24,13 +24,13 @@ create table if not exists chunks (
   id uuid primary key default gen_random_uuid(),
   source_id uuid references sources(id) on delete cascade,
   content text not null,
-  embedding vector(1536),
+  embedding vector(384),
   metadata jsonb default '{}'
 );
 
 create index if not exists chunks_embedding_idx on chunks using ivfflat (embedding vector_cosine_ops) with (lists = 100);
 
-create or replace function match_chunks(query_embedding vector(1536), top_k int default 3, p_bot_id uuid default null)
+create or replace function match_chunks(query_embedding vector(384), top_k int default 3, p_bot_id uuid default null)
 returns table(id uuid, content text, metadata jsonb, source_id uuid, source_name text, similarity float)
 language sql stable as $$
   select c.id, c.content, c.metadata, c.source_id, s.name as source_name,
