@@ -37,15 +37,25 @@ export default function SetupPage() {
   async function finish() {
     if (!businessName.trim() || !botName.trim()) return
     setSaving(true); setError('')
+
+    // Generate UUID client-side so we don't depend on parsing the response body
+    const botId = crypto.randomUUID()
+
     try {
       const res = await fetch('/api/bot-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ businessName, botName, survey: answers }),
+        body: JSON.stringify({ botId, businessName, botName, survey: answers }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      localStorage.setItem('botId', data.botId)
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        const msg = text ? JSON.parse(text).error : `Server error ${res.status}`
+        throw new Error(msg)
+      }
+
+      // Store and redirect — we already know the botId
+      localStorage.setItem('botId', botId)
       localStorage.setItem('botName', botName)
       localStorage.setItem('businessName', businessName)
       router.push('/chat')
