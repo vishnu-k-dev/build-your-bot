@@ -5,11 +5,8 @@ import { groq, CHAT_MODEL } from '@/lib/xai'
 import { embed } from '@/lib/embedder'
 
 const DEFAULT_PROMPT = `You are a helpful customer support assistant.
-Answer ONLY using the provided context. If the answer is not in the context, say: "I couldn't find this in the provided information."
-Keep answers short and clear.
-
-CONTEXT FROM KNOWLEDGE BASE:
-{context}`
+{context}
+Keep answers short and clear. If no context is provided, let the user know they can add documents via the dashboard to train you on their business information.`
 
 export async function POST(req: NextRequest) {
   const { question, botId } = await req.json()
@@ -27,20 +24,29 @@ export async function POST(req: NextRequest) {
       if (config?.system_prompt) systemPromptTemplate = config.system_prompt
     }
 
-    const queryEmbedding = await embed(question)
-    const { data: matches, error } = await getAdmin().rpc('match_chunks', {
-      query_embedding: queryEmbedding,
-      top_k: 3,
-      p_bot_id: botId || null,
-    })
+    let context = ''
+    let sources: { name: string; snippet: string }[] = []
 
-    if (error) throw error
+    try {
+      const queryEmbedding = await embed(question)
+      const { data: matches, error } = await getAdmin().rpc('match_chunks', {
+        query_embedding: queryEmbedding,
+        top_k: 3,
+        p_bot_id: botId || null,
+      })
+      if (!error && matches?.length) {
+        type Match = { content: string; source_name: string; similarity: number }
+        context = (matches as Match[]).map((m, i) => `[${i + 1}] ${m.content}`).join('\n\n')
+        sources = (matches as Match[]).map(m => ({ name: m.source_name, snippet: m.content.slice(0, 200) }))
+      }
+    } catch {
+      // No knowledge base yet — answer from system prompt only
+    }
 
-    type Match = { content: string; source_name: string; similarity: number }
-    const context = (matches as Match[]).map((m, i) => `[${i + 1}] ${m.content}`).join('\n\n')
-    const sources = (matches as Match[]).map(m => ({ name: m.source_name, snippet: m.content.slice(0, 200) }))
-
-    const systemPrompt = systemPromptTemplate.replace('{context}', context)
+    const contextBlock = context
+      ? `Answer ONLY using the provided context below. If the answer is not in the context, say: "I couldn't find this in the provided information."\n\nCONTEXT:\n${context}`
+      : ''
+    const systemPrompt = systemPromptTemplate.replace('{context}', contextBlock)
 
     const completion = await groq.chat.completions.create({
       model: CHAT_MODEL,
