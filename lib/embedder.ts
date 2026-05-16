@@ -1,7 +1,7 @@
 // Free embeddings via Hugging Face Inference API
 // Model: all-MiniLM-L6-v2 → 384 dimensions
 
-const HF_URL = 'https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2'
+const HF_URL = 'https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2'
 
 async function hfEmbed(inputs: string | string[]): Promise<number[][]> {
   const res = await fetch(HF_URL, {
