@@ -12,7 +12,8 @@ function getSupabase() {
 
 export default function WCTChatPage() {
   const router = useRouter()
-  const [user, setUser] = useState<{ email?: string; user_metadata?: { full_name?: string; program?: string; semester?: string } } | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
