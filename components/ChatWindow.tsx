@@ -1,20 +1,23 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { SourceCard } from './SourceCard'
 
 interface Message {
   role: 'user' | 'bot'
   text: string
   sources?: Array<{ name: string; snippet: string }>
+  feedbackSent?: boolean
+  question?: string // original question for feedback
 }
 
 interface Props {
   botId?: string
   botName?: string
+  enableFeedback?: boolean
 }
 
-export function ChatWindow({ botId, botName = 'Assistant' }: Props) {
+export function ChatWindow({ botId, botName = 'Assistant', enableFeedback = false }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     { role: 'bot', text: `Hi there! I'm ${botName}. How can I help you today?` },
   ])
@@ -27,10 +30,10 @@ export function ChatWindow({ botId, botName = 'Assistant' }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  async function send() {
-    const q = input.trim()
+  const send = useCallback(async (questionOverride?: string) => {
+    const q = (questionOverride ?? input).trim()
     if (!q || loading) return
-    setInput('')
+    if (!questionOverride) setInput('')
     setMessages(prev => [...prev, { role: 'user', text: q }])
     setLoading(true)
 
@@ -45,6 +48,7 @@ export function ChatWindow({ botId, botName = 'Assistant' }: Props) {
         role: 'bot',
         text: data.answer || data.error || 'Something went wrong.',
         sources: data.sources,
+        question: q,
       }])
     } catch {
       setMessages(prev => [...prev, { role: 'bot', text: 'Connection error. Please try again.' }])
@@ -52,6 +56,29 @@ export function ChatWindow({ botId, botName = 'Assistant' }: Props) {
       setLoading(false)
       inputRef.current?.focus()
     }
+  }, [input, loading, botId])
+
+  // Listen for quick-ask events from parent (WCT page chips)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const q = (e as CustomEvent<string>).detail
+      if (q) send(q)
+    }
+    window.addEventListener('wct-quick-ask', handler)
+    return () => window.removeEventListener('wct-quick-ask', handler)
+  }, [send])
+
+  async function sendFeedback(msgIndex: number, rating: 'up' | 'down') {
+    const msg = messages[msgIndex]
+    if (!msg || msg.feedbackSent) return
+    setMessages(prev => prev.map((m, i) => i === msgIndex ? { ...m, feedbackSent: true } : m))
+    try {
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ botId, question: msg.question || '', answer: msg.text, rating }),
+      })
+    } catch { /* silent fail */ }
   }
 
   return (
@@ -68,7 +95,7 @@ export function ChatWindow({ botId, botName = 'Assistant' }: Props) {
               </div>
             )}
             <div className={`max-w-[78%] ${m.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
-              <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+              <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
                 m.role === 'user'
                   ? 'bg-blue-600 text-white rounded-br-md'
                   : 'bg-slate-50 text-slate-800 border border-slate-100 rounded-bl-md'
@@ -81,13 +108,27 @@ export function ChatWindow({ botId, botName = 'Assistant' }: Props) {
                 </div>
               )}
               {m.role === 'bot' && i > 0 && (
-                <div className="flex gap-1 mt-1.5 ml-0.5">
-                  <button className="p-1 text-slate-300 hover:text-emerald-500 transition rounded" title="Helpful">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-                  </button>
-                  <button className="p-1 text-slate-300 hover:text-red-400 transition rounded" title="Not helpful">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
-                  </button>
+                <div className="flex items-center gap-1 mt-1.5 ml-0.5">
+                  {m.feedbackSent ? (
+                    <span className="text-xs text-slate-400 italic">Thanks for the feedback!</span>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => enableFeedback && sendFeedback(i, 'up')}
+                        className="p-1 text-slate-300 hover:text-emerald-500 transition rounded"
+                        title="Helpful"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                      </button>
+                      <button
+                        onClick={() => enableFeedback && sendFeedback(i, 'down')}
+                        className="p-1 text-slate-300 hover:text-red-400 transition rounded"
+                        title="Not helpful"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -117,14 +158,14 @@ export function ChatWindow({ botId, botName = 'Assistant' }: Props) {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Ask a question…"
+            placeholder="Ask about timetable, exams, fees, admissions…"
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && send()}
             className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 focus:outline-none py-1"
           />
           <button
-            onClick={send}
+            onClick={() => send()}
             disabled={loading || !input.trim()}
             className="w-8 h-8 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 rounded-lg flex items-center justify-center transition flex-shrink-0"
           >
@@ -133,7 +174,7 @@ export function ChatWindow({ botId, botName = 'Assistant' }: Props) {
             </svg>
           </button>
         </div>
-        <p className="text-center text-xs text-slate-400 mt-2">Powered by Build Your Bot</p>
+        <p className="text-center text-xs text-slate-400 mt-2">WCT Assistant · AI-powered student support</p>
       </div>
     </div>
   )

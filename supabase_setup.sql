@@ -1,4 +1,4 @@
--- Run this in Supabase SQL Editor
+-- Run this in Supabase SQL Editor (safe to re-run)
 
 create extension if not exists vector;
 
@@ -26,6 +26,15 @@ create table if not exists chunks (
   content text not null,
   embedding vector(384),
   metadata jsonb default '{}'
+);
+
+create table if not exists feedback (
+  id uuid primary key default gen_random_uuid(),
+  bot_id uuid references bot_config(id) on delete set null,
+  question text,
+  answer text,
+  rating text check (rating in ('up', 'down')),
+  created_at timestamptz default now()
 );
 
 create index if not exists chunks_embedding_idx on chunks using ivfflat (embedding vector_cosine_ops) with (lists = 100);
