@@ -1,4 +1,4 @@
-// Free embeddings via Cohere API
+// Free embeddings via Cohere API v2
 // Model: embed-english-light-v3.0 → 384 dimensions (matches DB schema)
 
 import { CohereClient } from 'cohere-ai'
@@ -12,21 +12,23 @@ function getCohere() {
 const MODEL = 'embed-english-light-v3.0'
 
 export async function embed(text: string): Promise<number[]> {
-  const res = await getCohere().embed({
+  const res = await getCohere().v2.embed({
     model: MODEL,
     texts: [text],
     inputType: 'search_query',
     embeddingTypes: ['float'],
   })
-  return (res.embeddings as { float: number[][] }).float[0]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (res.embeddings as any).float[0]
 }
 
 export async function embedBatch(texts: string[]): Promise<number[][]> {
-  const res = await getCohere().embed({
+  const res = await getCohere().v2.embed({
     model: MODEL,
     texts,
     inputType: 'search_document',
     embeddingTypes: ['float'],
   })
-  return (res.embeddings as { float: number[][] }).float
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (res.embeddings as any).float
 }
