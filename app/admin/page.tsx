@@ -16,6 +16,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
   const [seedMsg, setSeedMsg] = useState('')
+  const [seedProgress, setSeedProgress] = useState(0)
+  const [seedTotal, setSeedTotal] = useState(0)
   const [tab, setTab] = useState<'all' | 'up' | 'down'>('all')
 
   useEffect(() => {
@@ -26,10 +28,26 @@ export default function AdminDashboard() {
   }, [])
 
   async function seedKnowledgeBase() {
-    setSeeding(true); setSeedMsg('')
-    const res = await fetch('/api/seed', { method: 'POST' })
-    const data = await res.json()
-    setSeedMsg(data.message || data.error || 'Done')
+    setSeeding(true); setSeedMsg(''); setSeedProgress(0); setSeedTotal(0)
+    try {
+      // Step 1: init — get total doc count
+      const init = await fetch('/api/seed', { method: 'POST' }).then(r => r.json())
+      if (init.error) throw new Error(init.error)
+      const total: number = init.total
+      setSeedTotal(total)
+
+      // Step 2: seed each doc individually
+      for (let i = 0; i < total; i++) {
+        setSeedMsg(`Seeding document ${i + 1} of ${total}…`)
+        const res = await fetch(`/api/seed?doc=${i}`, { method: 'POST' })
+        const data = await res.json()
+        if (data.error) throw new Error(`Doc ${i + 1}: ${data.error}`)
+        setSeedProgress(i + 1)
+      }
+      setSeedMsg(`✅ Done! Seeded ${total} documents successfully.`)
+    } catch (e) {
+      setSeedMsg(`❌ ${e instanceof Error ? e.message : 'Seed failed'}`)
+    }
     setSeeding(false)
   }
 
@@ -63,7 +81,7 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h2 className="font-semibold text-slate-900 mb-1">Knowledge Base</h2>
           <p className="text-sm text-slate-500 mb-4">Seed the bot with WCT college data — timetables, exams, fees, admissions, faculty, and more.</p>
-          <div className="flex items-center gap-3">
+          <div className="space-y-3">
             <button
               onClick={seedKnowledgeBase}
               disabled={seeding}
@@ -71,8 +89,19 @@ export default function AdminDashboard() {
             >
               {seeding ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>Seeding…</> : '🌱 Seed WCT Knowledge Base'}
             </button>
+            {seeding && seedTotal > 0 && (
+              <div className="space-y-1.5">
+                <div className="w-full bg-slate-100 rounded-full h-2">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.round((seedProgress / seedTotal) * 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-500">{seedProgress} / {seedTotal} documents</p>
+              </div>
+            )}
             {seedMsg && (
-              <p className={`text-sm px-3 py-2 rounded-lg ${seedMsg.includes('error') || seedMsg.includes('Failed') ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50'}`}>
+              <p className={`text-sm px-3 py-2 rounded-lg ${seedMsg.includes('❌') ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50'}`}>
                 {seedMsg}
               </p>
             )}
