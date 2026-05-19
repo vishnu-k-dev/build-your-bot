@@ -77,12 +77,12 @@ export default function WCTChatPage() {
       {/* Quick action chips */}
       <div className="bg-white border-b border-slate-100 px-6 py-2.5 flex gap-2 overflow-x-auto flex-shrink-0">
         {[
-          "What's today's timetable?",
+          `What is the timetable for ${new Date().toLocaleDateString('en-IN', { weekday: 'long', timeZone: 'Asia/Kolkata' })}?`,
           "When is the Machine Learning exam?",
-          "What is the MCA fee?",
-          "When do admissions open?",
-          "What are hostel timings?",
-          "How much attendance is required?",
+          "What is the MCA fee structure?",
+          "When do admissions open for 2025-26?",
+          "What are the hostel gate timings?",
+          "How much attendance is required to sit for exams?",
         ].map(q => (
           <button
             key={q}

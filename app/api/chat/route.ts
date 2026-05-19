@@ -4,9 +4,10 @@ import { getAdmin } from '@/lib/supabase'
 import { groq, CHAT_MODEL } from '@/lib/xai'
 import { embed } from '@/lib/embedder'
 
-const DEFAULT_PROMPT = `You are a helpful customer support assistant.
+const DEFAULT_PROMPT = `You are a helpful student support assistant for an educational institution.
+Today is {date}.
 {context}
-Keep answers short and clear. If no context is provided, let the user know they can add documents via the dashboard to train you on their business information.`
+Keep answers clear and student-friendly.`
 
 export async function POST(req: NextRequest) {
   const { question, botId } = await req.json()
@@ -44,9 +45,18 @@ export async function POST(req: NextRequest) {
     }
 
     const contextBlock = context
-      ? `Answer ONLY using the provided context below. If the answer is not in the context, say: "I couldn't find this in the provided information."\n\nCONTEXT:\n${context}`
+      ? `Answer ONLY using the provided context below. If the answer is not in the context, say: "I don't have that information. Please contact the college helpdesk."\n\nCONTEXT:\n${context}`
       : ''
-    const systemPrompt = systemPromptTemplate.replace('{context}', contextBlock)
+
+    // Inject current date and day so bot can answer "today's timetable" correctly
+    const now = new Date()
+    const dateStr = now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata' })
+    const dayStr = now.toLocaleDateString('en-IN', { weekday: 'long', timeZone: 'Asia/Kolkata' })
+
+    const systemPrompt = systemPromptTemplate
+      .replace('{context}', contextBlock)
+      .replace('{date}', dateStr)
+      .replace('{day}', dayStr)
 
     const completion = await groq.chat.completions.create({
       model: CHAT_MODEL,
@@ -54,7 +64,7 @@ export async function POST(req: NextRequest) {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: question },
       ],
-      max_tokens: 512,
+      max_tokens: 1024,
     })
 
     const answer = completion.choices[0].message.content || ''

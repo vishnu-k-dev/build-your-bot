@@ -5,8 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdmin } from '@/lib/supabase'
 import { chunkText } from '@/lib/chunker'
 import { embedBatch } from '@/lib/embedder'
-import { KNOWLEDGE_BASE, COLLEGE_NAME, BOT_NAME, BOT_ID } from '@/data/college-knowledge-base'
-import { buildSystemPrompt } from '@/lib/survey'
+import { KNOWLEDGE_BASE, COLLEGE_NAME, BOT_NAME, BOT_ID, WCT_SYSTEM_PROMPT } from '@/data/college-knowledge-base'
 
 // POST /api/seed?doc=0  — seed one document at a time (index passed as query param)
 // POST /api/seed        — seed just the bot config + return total doc count
@@ -21,16 +20,13 @@ export async function POST(req: NextRequest) {
       industry: 'Education',
       business_type: 'College / University',
       primary_use: 'Student support, admissions, timetable and exam queries',
-      tone: 'Professional and Friendly',
-      language: 'English',
     }
-    const systemPrompt = buildSystemPrompt(COLLEGE_NAME, BOT_NAME, survey)
     const { error: cfgErr } = await supabase.from('bot_config').upsert({
       id: BOT_ID,
       business_name: COLLEGE_NAME,
       bot_name: BOT_NAME,
       survey,
-      system_prompt: systemPrompt,
+      system_prompt: WCT_SYSTEM_PROMPT,
     })
     if (cfgErr) throw new Error(`bot_config upsert: ${cfgErr.message}`)
 
