@@ -15,11 +15,16 @@ interface Props {
   botId?: string
   botName?: string
   enableFeedback?: boolean
+  studentName?: string
 }
 
-export function ChatWindow({ botId, botName = 'Assistant', enableFeedback = false }: Props) {
+export function ChatWindow({ botId, botName = 'Assistant', enableFeedback = false, studentName }: Props) {
+  const greeting = studentName
+    ? `Hi ${studentName.split(' ')[0]}! 👋 I'm ${botName}. Ask me anything about timetables, exams, fees, faculty, or college circulars.`
+    : `Hi there! I'm ${botName}. Ask me about timetables, exams, fees, faculty contacts, or college announcements.`
+
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'bot', text: `Hi there! I'm ${botName}. How can I help you today?` },
+    { role: 'bot', text: greeting },
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)

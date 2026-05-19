@@ -1,47 +1,49 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
+import { useState, useEffect } from 'react'
 import { ChatWindow } from '@/components/ChatWindow'
+import { StudentModal, StudentInfo } from '@/components/StudentModal'
 import { BOT_ID, BOT_NAME, COLLEGE_NAME } from '@/data/college-knowledge-base'
 import Link from 'next/link'
 
-function getSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-}
+const STORAGE_KEY = 'wct_student'
 
 export default function WCTChatPage() {
-  const router = useRouter()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [student, setStudent] = useState<StudentInfo | null>(null)
+  const [ready, setReady] = useState(false)
 
+  // Check localStorage on mount
   useEffect(() => {
-    const supabase = getSupabase()
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/login'); return }
-      setUser(data.user)
-      setLoading(false)
-    })
-  }, [router])
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) setStudent(JSON.parse(saved))
+    } catch { /* ignore */ }
+    setReady(true)
+  }, [])
 
-  async function handleLogout() {
-    await getSupabase().auth.signOut()
-    router.push('/login')
+  function handleStudentSubmit(info: StudentInfo) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(info))
+    setStudent(info)
   }
 
-  if (loading) return (
-    <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-      <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
-    </div>
-  )
+  const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', timeZone: 'Asia/Kolkata' })
 
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Student'
-  const program = user?.user_metadata?.program
-  const semester = user?.user_metadata?.semester
+  const quickAsks = [
+    `What is the timetable for ${today}?`,
+    'When is the Machine Learning exam?',
+    'What is the MCA fee structure?',
+    'How do I approach Prof. Ananya Krishnan?',
+    'What are the hostel gate timings?',
+    'How much attendance is required?',
+    'Any recent circulars or announcements?',
+    'When do admissions open for 2025-26?',
+  ]
 
   return (
     <div className="h-screen bg-[#f8fafc] flex flex-col">
+
+      {/* Student info modal */}
+      {ready && !student && <StudentModal onSubmit={handleStudentSubmit} />}
+
       {/* Header */}
       <header className="bg-white border-b border-slate-100 px-6 py-3.5 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -61,52 +63,51 @@ export default function WCTChatPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden sm:block text-right">
-            <p className="text-sm font-medium text-slate-700">{displayName}</p>
-            {program && <p className="text-xs text-slate-400">{program} {semester ? `· ${semester}` : ''}</p>}
-          </div>
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
-            {displayName.charAt(0).toUpperCase()}
-          </div>
-          <button onClick={handleLogout} className="text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition">
-            Sign Out
+          {student && (
+            <div className="hidden sm:flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-xs">
+                {student.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-medium text-slate-700">{student.name}</p>
+                <p className="text-xs text-slate-400">{student.branch} · {student.semester}</p>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={() => { localStorage.removeItem(STORAGE_KEY); setStudent(null) }}
+            className="text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition"
+          >
+            Change
           </button>
+          <Link href="/admin" className="text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition hidden sm:block">
+            Admin
+          </Link>
         </div>
       </header>
 
-      {/* Quick action chips */}
-      <div className="bg-white border-b border-slate-100 px-6 py-2.5 flex gap-2 overflow-x-auto flex-shrink-0">
-        {[
-          `What is the timetable for ${new Date().toLocaleDateString('en-IN', { weekday: 'long', timeZone: 'Asia/Kolkata' })}?`,
-          "When is the Machine Learning exam?",
-          "What is the MCA fee structure?",
-          "When do admissions open for 2025-26?",
-          "What are the hostel gate timings?",
-          "How much attendance is required to sit for exams?",
-        ].map(q => (
+      {/* Quick chips */}
+      <div className="bg-white border-b border-slate-100 px-6 py-2.5 flex gap-2 overflow-x-auto flex-shrink-0 scrollbar-hide">
+        {quickAsks.map(q => (
           <button
             key={q}
-            onClick={() => {
-              const event = new CustomEvent('wct-quick-ask', { detail: q })
-              window.dispatchEvent(event)
-            }}
-            className="flex-shrink-0 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium px-3 py-1.5 rounded-full transition"
+            onClick={() => window.dispatchEvent(new CustomEvent('wct-quick-ask', { detail: q }))}
+            className="flex-shrink-0 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium px-3 py-1.5 rounded-full transition whitespace-nowrap"
           >
             {q}
           </button>
         ))}
       </div>
 
-      {/* Chat area */}
+      {/* Chat */}
       <div className="flex-1 overflow-hidden max-w-3xl w-full mx-auto px-4 py-4 flex flex-col">
         <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <ChatWindow botId={BOT_ID} botName={BOT_NAME} enableFeedback />
+          <ChatWindow botId={BOT_ID} botName={BOT_NAME} enableFeedback studentName={student?.name} />
         </div>
       </div>
 
-      {/* Footer */}
       <div className="text-center py-2 text-xs text-slate-400">
-        WCT Assistant · Powered by AI · <Link href="/admin" className="hover:underline">Admin Dashboard</Link>
+        WCT Assistant · AI-powered student support · {COLLEGE_NAME}
       </div>
     </div>
   )

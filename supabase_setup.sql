@@ -28,6 +28,15 @@ create table if not exists chunks (
   metadata jsonb default '{}'
 );
 
+create table if not exists students (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  usn text,
+  branch text,
+  semester text,
+  created_at timestamptz default now()
+);
+
 create table if not exists feedback (
   id uuid primary key default gen_random_uuid(),
   bot_id uuid references bot_config(id) on delete set null,
