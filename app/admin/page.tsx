@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [feedback, setFeedback] = useState<FeedbackRow[]>([])
   const [students, setStudents] = useState<StudentRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [tab, setTab] = useState<'overview' | 'students' | 'feedback'>('overview')
   const [feedbackFilter, setFeedbackFilter] = useState<'all' | 'up' | 'down'>('all')
 
@@ -32,10 +33,11 @@ export default function AdminDashboard() {
       fetch(`/api/feedback?botId=${BOT_ID}`).then(r => r.json()),
       fetch('/api/students').then(r => r.json()),
     ]).then(([fb, st]) => {
+      if (st?.error) setError(`Students table error: ${st.error} — run the SQL in Supabase to create the students table.`)
       setFeedback(Array.isArray(fb) ? fb : [])
       setStudents(Array.isArray(st) ? st : [])
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(e => { setError(String(e)); setLoading(false) })
   }, [])
 
   const upCount = feedback.filter(f => f.rating === 'up').length
@@ -81,6 +83,11 @@ export default function AdminDashboard() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-5 py-4 rounded-xl">
+            ⚠️ {error}
+          </div>
+        )}
 
         {/* OVERVIEW TAB */}
         {tab === 'overview' && (
