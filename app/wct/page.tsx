@@ -80,9 +80,6 @@ export default function WCTChatPage() {
           >
             Change
           </button>
-          <Link href="/admin" className="text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition hidden sm:block">
-            Admin
-          </Link>
         </div>
       </header>
 
@@ -107,7 +104,7 @@ export default function WCTChatPage() {
       </div>
 
       <div className="text-center py-2 text-xs text-slate-400">
-        WCT Assistant · AI-powered student support · {COLLEGE_NAME}
+        WCT Assistant · AI-powered student support
       </div>
     </div>
   )
