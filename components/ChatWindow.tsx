@@ -19,6 +19,8 @@ interface Props {
 }
 
 export function ChatWindow({ botId, botName = 'Assistant', enableFeedback = false, studentName }: Props) {
+  const HISTORY_KEY = `wct_chat_${botId ?? 'default'}`
+
   const greeting = studentName
     ? `Hi ${studentName.split(' ')[0]}! 👋 I'm ${botName}. Ask me anything about timetables, exams, fees, faculty, or college circulars.`
     : `Hi there! I'm ${botName}. Ask me about timetables, exams, fees, faculty contacts, or college announcements.`
@@ -30,6 +32,60 @@ export function ChatWindow({ botId, botName = 'Assistant', enableFeedback = fals
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // ── Restore history from localStorage on mount ──────────────────────────────
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(HISTORY_KEY)
+      if (saved) {
+        const parsed: Message[] = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 1) {
+          setMessages(parsed)
+          return
+        }
+      }
+    } catch { /* ignore */ }
+    // No saved history — use fresh greeting
+    setMessages([{ role: 'bot', text: greeting }])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [HISTORY_KEY])
+
+  // ── Persist history whenever messages change ────────────────────────────────
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(messages)) } catch { /* ignore */ }
+  }, [messages, HISTORY_KEY])
+
+  // ── Export conversation as .txt ─────────────────────────────────────────────
+  function exportChat() {
+    const lines = [
+      `WCT Assistant — Chat Export`,
+      `Date: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+      `Student: ${studentName ?? 'Unknown'}`,
+      '',
+      '─'.repeat(50),
+      '',
+      ...messages.map(m =>
+        m.role === 'user'
+          ? `You: ${m.text}`
+          : `WCT Assistant: ${m.text}`
+      ),
+    ]
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `wct-chat-${new Date().toISOString().slice(0, 10)}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // ── Clear history ───────────────────────────────────────────────────────────
+  function clearHistory() {
+    localStorage.removeItem(HISTORY_KEY)
+    setMessages([{ role: 'bot', text: greeting }])
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -159,6 +215,33 @@ export function ChatWindow({ botId, botName = 'Assistant', enableFeedback = fals
 
       {/* Input */}
       <div className="border-t border-slate-100 px-4 py-3.5">
+        {/* Toolbar: export + clear */}
+        {messages.length > 1 && (
+          <div className="flex items-center gap-2 mb-2.5">
+            <button
+              onClick={exportChat}
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-600 hover:bg-blue-50 px-2.5 py-1 rounded-lg transition"
+              title="Download conversation"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Export chat
+            </button>
+            <button
+              onClick={clearHistory}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 px-2.5 py-1 rounded-lg transition"
+              title="Clear conversation"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+              </svg>
+              Clear
+            </button>
+            <span className="ml-auto text-xs text-slate-300">{messages.length - 1} message{messages.length !== 2 ? 's' : ''}</span>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 bg-slate-50 rounded-xl border border-slate-200 px-4 py-2 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-50 transition">
           <input
             ref={inputRef}
