@@ -1,8 +1,10 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdmin } from '@/lib/supabase'
+import { requireAdmin } from '@/lib/admin-auth'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!requireAdmin(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const { data, error } = await getAdmin()
       .from('students')

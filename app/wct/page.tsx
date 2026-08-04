@@ -99,7 +99,7 @@ export default function WCTChatPage() {
       {/* Chat */}
       <div className="flex-1 overflow-hidden max-w-3xl w-full mx-auto px-4 py-4 flex flex-col">
         <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <ChatWindow botId={BOT_ID} botName={BOT_NAME} enableFeedback studentName={student?.name} />
+          <ChatWindow botId={BOT_ID} botName={BOT_NAME} enableFeedback studentName={student?.name} sessionKey={student?.usn} />
         </div>
       </div>
 

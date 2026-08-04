@@ -27,13 +27,15 @@ export function StudentModal({ onSubmit }: Props) {
       return
     }
     setLoading(true); setError('')
+    // fetch() does NOT reject on 4xx/5xx — check res.ok, else the insert can fail silently
     try {
-      await fetch('/api/students', {
+      const res = await fetch('/api/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), usn: usn.trim().toUpperCase(), branch, semester }),
       })
-    } catch { /* silent — still proceed */ }
+      if (!res.ok) console.error('Student logging failed:', await res.text())
+    } catch (e) { console.error('Student logging failed:', e) } // still proceed — don't block chat on analytics
     onSubmit({ name: name.trim(), usn: usn.trim().toUpperCase(), branch, semester })
     setLoading(false)
   }

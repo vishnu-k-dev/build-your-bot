@@ -16,10 +16,11 @@ interface Props {
   botName?: string
   enableFeedback?: boolean
   studentName?: string
+  sessionKey?: string // per-student id (USN) so one student never sees another's chat
 }
 
-export function ChatWindow({ botId, botName = 'Assistant', enableFeedback = false, studentName }: Props) {
-  const HISTORY_KEY = `wct_chat_${botId ?? 'default'}`
+export function ChatWindow({ botId, botName = 'Assistant', enableFeedback = false, studentName, sessionKey }: Props) {
+  const HISTORY_KEY = `wct_chat_${botId ?? 'default'}_${sessionKey ?? 'guest'}`
 
   const greeting = studentName
     ? `Hi ${studentName.split(' ')[0]}! 👋 I'm ${botName}. Ask me anything about timetables, exams, fees, faculty, or college circulars.`

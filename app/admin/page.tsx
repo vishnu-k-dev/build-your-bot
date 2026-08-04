@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { BOT_ID } from '@/data/college-knowledge-base'
 
@@ -20,25 +20,106 @@ interface StudentRow {
   created_at: string
 }
 
+interface QuestionRow {
+  id: string
+  question: string
+  created_at: string
+}
+
+const KEY_STORE = 'wct_admin_key'
+
 export default function AdminDashboard() {
   const [feedback, setFeedback] = useState<FeedbackRow[]>([])
   const [students, setStudents] = useState<StudentRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const [questions, setQuestions] = useState<QuestionRow[]>([])
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [tab, setTab] = useState<'overview' | 'students' | 'feedback'>('overview')
   const [feedbackFilter, setFeedbackFilter] = useState<'all' | 'up' | 'down'>('all')
 
-  useEffect(() => {
-    Promise.all([
-      fetch(`/api/feedback?botId=${BOT_ID}`).then(r => r.json()),
-      fetch('/api/students').then(r => r.json()),
-    ]).then(([fb, st]) => {
-      if (st?.error) setError(`Students table error: ${st.error} — run the SQL in Supabase to create the students table.`)
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const [authed, setAuthed] = useState(false)
+  const [pw, setPw] = useState('')
+  const [checking, setChecking] = useState(true)
+
+  const load = useCallback(async (key: string) => {
+    setLoading(true); setError('')
+    const h = { 'x-admin-key': key }
+    try {
+      const [fbRes, stRes, qRes] = await Promise.all([
+        fetch(`/api/feedback?botId=${BOT_ID}`, { headers: h }),
+        fetch('/api/students', { headers: h }),
+        fetch(`/api/questions?botId=${BOT_ID}`, { headers: h }),
+      ])
+      if (fbRes.status === 401 || stRes.status === 401 || qRes.status === 401) {
+        sessionStorage.removeItem(KEY_STORE)
+        setAuthed(false)
+        setError('Wrong password.')
+        return
+      }
+      const [fb, st, q] = await Promise.all([fbRes.json(), stRes.json(), qRes.json()])
+      if (st?.error) setError(`Students table error: ${st.error} — run supabase_setup.sql in Supabase.`)
       setFeedback(Array.isArray(fb) ? fb : [])
       setStudents(Array.isArray(st) ? st : [])
+      setQuestions(Array.isArray(q) ? q : [])
+      setAuthed(true)
+    } catch (e) {
+      setError(String(e))
+    } finally {
       setLoading(false)
-    }).catch(e => { setError(String(e)); setLoading(false) })
+    }
   }, [])
+
+  // Restore a saved key on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem(KEY_STORE)
+    if (saved) load(saved).finally(() => setChecking(false))
+    else setChecking(false)
+  }, [load])
+
+  function handleLogin(e: React.FormEvent) {
+    e.preventDefault()
+    if (!pw) return
+    sessionStorage.setItem(KEY_STORE, pw)
+    load(pw)
+  }
+
+  // ── Login screen ────────────────────────────────────────────────────────────
+  if (!authed) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center px-4">
+        <form onSubmit={handleLogin} className="bg-white rounded-2xl shadow-sm border border-slate-200 w-full max-w-sm p-7">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900 text-sm">WCT Admin</p>
+              <p className="text-xs text-slate-400">Restricted access</p>
+            </div>
+          </div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Password</label>
+          <input
+            type="password"
+            value={pw}
+            onChange={e => setPw(e.target.value)}
+            autoFocus
+            placeholder="Enter admin password"
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+          />
+          {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
+          <button type="submit" disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-2.5 rounded-xl transition text-sm mt-4">
+            {loading ? 'Checking…' : 'Unlock'}
+          </button>
+        </form>
+      </div>
+    )
+  }
+
+  if (checking) return <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center text-slate-400 text-sm">Loading…</div>
 
   const upCount = feedback.filter(f => f.rating === 'up').length
   const downCount = feedback.filter(f => f.rating === 'down').length
@@ -67,7 +148,15 @@ export default function AdminDashboard() {
             <p className="text-xs text-slate-400">Westbrook College of Technology</p>
           </div>
         </div>
-        <Link href="/wct" className="text-sm text-blue-600 hover:underline font-medium">← Back to Chat</Link>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => { sessionStorage.removeItem(KEY_STORE); setAuthed(false); setPw('') }}
+            className="text-sm text-slate-400 hover:text-slate-600 font-medium"
+          >
+            Log out
+          </button>
+          <Link href="/wct" className="text-sm text-blue-600 hover:underline font-medium">← Back to Chat</Link>
+        </div>
       </header>
 
       {/* Tabs */}
@@ -99,7 +188,7 @@ export default function AdminDashboard() {
                 <p className="text-sm text-slate-500 mt-1">Total Students</p>
               </div>
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 text-center">
-                <p className="text-3xl font-bold text-slate-900">{totalFeedback}</p>
+                <p className="text-3xl font-bold text-slate-900">{questions.length}</p>
                 <p className="text-sm text-slate-500 mt-1">Questions Asked</p>
               </div>
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 text-center">
@@ -139,17 +228,14 @@ export default function AdminDashboard() {
               </div>
               {loading ? (
                 <div className="p-8 text-center text-slate-400 text-sm">Loading…</div>
-              ) : feedback.length === 0 ? (
+              ) : questions.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 text-sm">No questions yet.</div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {feedback.slice(0, 5).map(row => (
+                  {questions.slice(0, 5).map(row => (
                     <div key={row.id} className="px-6 py-3.5 flex items-center justify-between gap-4">
                       <p className="text-sm text-slate-700 truncate">{row.question}</p>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span>{row.rating === 'up' ? '👍' : '👎'}</span>
-                        <span className="text-xs text-slate-400">{new Date(row.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-                      </div>
+                      <span className="text-xs text-slate-400 flex-shrink-0">{new Date(row.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
                     </div>
                   ))}
                 </div>

@@ -36,6 +36,18 @@ create table if not exists students (
   semester text,
   created_at timestamptz default now()
 );
+-- self-heal: `create table if not exists` never adds columns to a pre-existing table,
+-- so a students table made before these columns existed would silently drop USN etc.
+alter table students add column if not exists usn text;
+alter table students add column if not exists branch text;
+alter table students add column if not exists semester text;
+
+create table if not exists questions (
+  id uuid primary key default gen_random_uuid(),
+  bot_id uuid,
+  question text,
+  created_at timestamptz default now()
+);
 
 create table if not exists feedback (
   id uuid primary key default gen_random_uuid(),

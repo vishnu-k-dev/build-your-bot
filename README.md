@@ -58,78 +58,24 @@ Create a `.env.local` file in the root:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-XAI_API_KEY=your_xai_api_key
+GROQ_API_KEY=your_groq_api_key
+COHERE_API_KEY=your_cohere_api_key
+ADMIN_PASSWORD=pick_a_strong_password   # gates the /admin dashboard
 ```
 
 You can find these in:
 - **Supabase** → Project Settings → API
-- **xAI** → [console.x.ai](https://console.x.ai)
+- **Groq** → [console.groq.com](https://console.groq.com) (chat LLM)
+- **Cohere** → [dashboard.cohere.com](https://dashboard.cohere.com) (embeddings, 384-dim)
+- **`ADMIN_PASSWORD`** — any secret you choose; required to open `/admin`
 
 ### 4. Set up the database
 
-Go to your **Supabase dashboard → SQL Editor → New query** and run:
+Go to your **Supabase dashboard → SQL Editor → New query**, then copy in and run the full [`supabase_setup.sql`](supabase_setup.sql). It's idempotent (safe to re-run) and creates every table the app needs: `bot_config`, `sources`, `chunks` (384-dim embeddings), `students`, `questions`, and `feedback`, plus the `match_chunks` vector-search function.
 
-```sql
-create extension if not exists vector;
+> **Already ran an older version?** Just run `supabase_setup.sql` again — it uses `create table if not exists` and `add column if not exists`, so it self-heals a `students` table that predates the `usn`/`branch`/`semester` columns and adds the newer `questions` log table without touching your data.
 
-create table if not exists bot_config (
-  id uuid primary key default gen_random_uuid(),
-  business_name text not null,
-  bot_name text not null,
-  survey jsonb not null default '{}',
-  system_prompt text,
-  created_at timestamptz default now()
-);
-
-create table if not exists sources (
-  id uuid primary key default gen_random_uuid(),
-  bot_id uuid references bot_config(id) on delete cascade,
-  name text not null,
-  type text not null,
-  raw_text text,
-  created_at timestamptz default now()
-);
-
-create table if not exists chunks (
-  id uuid primary key default gen_random_uuid(),
-  source_id uuid references sources(id) on delete cascade,
-  content text not null,
-  embedding vector(1536),
-  metadata jsonb default '{}'
-);
-
-create index if not exists chunks_embedding_idx
-  on chunks using ivfflat (embedding vector_cosine_ops) with (lists = 100);
-
-create or replace function match_chunks(
-  query_embedding vector(1536),
-  top_k int default 3,
-  p_bot_id uuid default null
-)
-returns table(id uuid, content text, metadata jsonb, source_id uuid, source_name text, similarity float)
-language sql stable as $$
-  select c.id, c.content, c.metadata, c.source_id, s.name as source_name,
-    1 - (c.embedding <=> query_embedding) as similarity
-  from chunks c
-  join sources s on s.id = c.source_id
-  where (p_bot_id is null or s.bot_id = p_bot_id)
-  order by c.embedding <=> query_embedding
-  limit top_k;
-$$;
-```
-
-> **Already ran an older version of the SQL?** Just run this to migrate:
-> ```sql
-> create table if not exists bot_config (
->   id uuid primary key default gen_random_uuid(),
->   business_name text not null,
->   bot_name text not null,
->   survey jsonb not null default '{}',
->   system_prompt text,
->   created_at timestamptz default now()
-> );
-> alter table sources add column if not exists bot_id uuid references bot_config(id) on delete cascade;
-> ```
+> **Free-tier note:** Supabase pauses inactive projects after ~1 week. A paused project makes all writes fail silently (student logins and questions won't be saved) — if data stops appearing, check the project isn't paused in the Supabase dashboard and resume it.
 
 ### 5. Run the dev server
 
@@ -149,7 +95,12 @@ Open [http://localhost:3000](http://localhost:3000) — you'll land on the setup
 /chat       → chat with your bot immediately
 /dashboard  → (optional) upload PDFs / URLs / FAQ → Train Bot
 /embed-page → get the embed script for your website
+/wct        → WCT college assistant demo (student modal → chat)
+/admin      → password-gated dashboard (students, questions, feedback)
 ```
+
+Each student's chat history is scoped to their USN, so switching student on `/wct`
+starts a fresh conversation instead of showing the previous person's chat.
 
 ---
 
@@ -159,7 +110,7 @@ Open [http://localhost:3000](http://localhost:3000) — you'll land on the setup
 
 ```bash
 git remote add origin https://github.com/YOUR_USERNAME/build-your-bot.git
-git push -u origin master
+git push -u origin main
 ```
 
 ### 2. Import on Vercel
@@ -173,7 +124,9 @@ git push -u origin master
 | `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Your Supabase service role key |
-| `XAI_API_KEY` | Your xAI API key |
+| `GROQ_API_KEY` | Your Groq API key (chat LLM) |
+| `COHERE_API_KEY` | Your Cohere API key (embeddings) |
+| `ADMIN_PASSWORD` | Password for the `/admin` dashboard |
 
 4. Click **Deploy** — Vercel auto-detects Next.js, no extra config needed.
 

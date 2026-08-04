@@ -68,6 +68,10 @@ export async function POST(req: NextRequest) {
     })
 
     const answer = completion.choices[0].message.content || ''
+
+    // Log every question so the admin count reflects real usage (not just 👍/👎 clicks)
+    try { await getAdmin().from('questions').insert({ bot_id: botId || null, question }) } catch { /* non-fatal */ }
+
     return NextResponse.json({ answer, sources })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Chat failed'
